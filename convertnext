@@ -347,7 +347,7 @@
     <button class="nav-btn" data-target="image">🖼️ Image</button>
     <button class="nav-btn" data-target="signature">✒️ Signature</button>
     <button class="nav-btn" data-target="text">📝 Text</button>
-    <button class="nav-btn" data-target="currency">💎 Finance</button>
+    <button class="nav-btn" data-target="currency">💰 Finance</button>
     <button class="nav-btn" data-target="units">⚖️ Units</button>
     <button class="nav-btn" data-target="education">🎓 Education</button>
     <button class="nav-btn" data-target="utilities">🛠️ Utilities</button>
@@ -773,8 +773,7 @@
 <div id="toast-container" class="toast-container"></div>
 
 <script>
-const apiKey = "AIzaSyCoAUJc1gNAcnMSq47EpPfPP3K0dg1UD4I"; 
-const removeBgApiKey = "W81RomoGYdkSe1pvU6QrTgzM";
+const apiKey = 
 
 /* --- UTILS --- */
 function showToast(message, type = 'info') {
