@@ -1,1293 +1,249 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>convertnext.in - Ultimate Utility Suite</title>
-<meta name="description" content="A complete client-side utility suite for PDF, Images, Text, Data, Finance, and Units.">
+import streamlit as st
+import google.generativeai as genai
+from PIL import Image, ImageOps, ImageFilter
+import io
+import pypdf
+from rembg import remove
+import qrcode
+import math
 
-<!-- Google Fonts -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+# --- PAGE CONFIG ---
+st.set_page_config(
+    page_title="ConvertNext - Python Edition",
+    page_icon="🛠️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-<!-- Cropper.js CSS -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
-
+# --- CUSTOM CSS (To match your style) ---
+st.markdown("""
 <style>
-  :root {
-    --bg-gradient: linear-gradient(135deg, #f6f9fc 0%, #eef2f7 100%);
-    --card-bg: rgba(255, 255, 255, 0.95);
-    --card-border: 1px solid rgba(255, 255, 255, 0.6);
-    --text-main: #1e293b;
-    --text-muted: #64748b;
-    
-    /* Brand Gradients */
-    --primary-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    --primary-shadow: rgba(99, 102, 241, 0.3);
-    
-    /* Violet Gradient for Specific Tools */
-    --violet-gradient: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-    --violet-shadow: rgba(139, 92, 246, 0.3);
-    
-    /* AI Gradient */
-    --ai-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
-    
-    --danger: #ef4444;
-    --success: #10b981;
-    --warning: #f59e0b;
-    
-    --radius-lg: 20px;
-    --radius-md: 12px;
-    --radius-sm: 8px;
-    
-    --shadow-sm: 0 2px 8px rgba(0,0,0,0.05);
-    --shadow-md: 0 12px 24px -6px rgba(0,0,0,0.08);
-    --shadow-lg: 0 20px 35px -10px rgba(0,0,0,0.1);
-    
-    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  body {
-    font-family: 'Outfit', sans-serif;
-    background: var(--bg-gradient);
-    background-attachment: fixed;
-    color: var(--text-main);
-    margin: 0;
-    padding: 20px;
-    padding-top: 40px;
-    line-height: 1.6;
-    min-height: 100vh;
-  }
-
-  .wrap { max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; gap: 30px; }
-
-  header { text-align: center; margin-bottom: 10px; padding-top: 20px; position: relative; }
-  
-  /* API Key Input Styling */
-  .api-key-container {
-    position: absolute;
-    top: 0;
-    right: 0;
-    display: flex;
-    gap: 5px;
-    align-items: center;
-    z-index: 100;
-  }
-  .api-key-input {
-    padding: 6px 10px;
-    border-radius: 20px;
-    border: 1px solid #e2e8f0;
-    font-size: 0.8rem;
-    width: 150px;
-    transition: all 0.3s;
-    outline: none;
-    background: rgba(255,255,255,0.8);
-  }
-  .api-key-input:focus { width: 200px; border-color: #8b5cf6; }
-  .api-key-input.attention { border-color: #ef4444; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2); }
-
-  #logo-img {
-    display: block; margin: 0 auto 15px auto;
-    max-width: 150px; height: auto;
-    animation: popIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-  }
-
-  h1 {
-    margin: 0; font-size: 2.5rem; font-weight: 800; letter-spacing: -0.03em;
-    background: var(--primary-gradient); -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent; display: inline-block;
-    animation: fadeInDown 0.8s ease-out 0.4s backwards;
-  }
-  .subtitle { font-size: 1rem; color: var(--text-muted); margin-top: 8px; font-weight: 400; animation: fadeIn 1s ease-out 0.7s backwards; }
-
-  /* --- FIXED MAIN NAV BAR --- */
-  .nav-bar {
-    display: flex; 
-    justify-content: center; 
-    gap: 8px; 
-    background: white; 
-    padding: 8px; 
-    border-radius: 50px;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); 
-    margin: 0 auto; 
-    max-width: fit-content;
-    animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) 1s backwards;
-  }
-
-  /* New Sticky Class for the Main Navigation - DOUBLE ROW EDIT */
-  .nav-bar.main-nav {
-    position: sticky;
-    z-index: 1000;
-    
-    /* Use Grid for Double Row (4 items x 2 rows) */
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-    
-    /* Glassmorphism */
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,0.6);
-    box-shadow: 0 8px 20px -4px rgba(0,0,0,0.1);
-    
-    /* Centering and sizing */
-    max-width: 800px;
-    margin: 0 auto 30px auto;
-    padding: 10px 20px;
-    border-radius: 20px;
-    
-    /* Reset scroll behavior */
-    overflow-x: visible;
-    justify-content: center;
-  }
-
-  /* Desktop Styling (Larger buttons) */
-  @media(min-width: 900px) {
-    .nav-bar.main-nav {
-        top: 20px;
-    }
-  }
-
-  /* Mobile/Tablet Styling */
-  @media(max-width: 899px) {
-     .nav-bar.main-nav {
-        top: 10px;
-        width: 95%;
-        padding: 10px;
-        gap: 6px;
-     }
-     /* Stack Icon and Text on Mobile to fit 4 in a row */
-     .nav-bar.main-nav .nav-btn {
-        flex-direction: column;
-        gap: 4px;
-        padding: 8px 4px;
-        font-size: 0.75rem;
-        text-align: center;
-        border-radius: 12px;
-     }
-     /* Adjust header padding */
-     header { padding-top: 10px; }
-  }
-
-  .nav-btn {
-    background: transparent; border: none; padding: 10px 20px; border-radius: 40px;
-    font-weight: 600; color: var(--text-muted); cursor: pointer; transition: var(--transition);
-    font-family: inherit; font-size: 0.95rem;
-    display: flex;
-    align-items: center;
-    justify-content: center; /* Center content */
-    gap: 6px;
-  }
-  .nav-btn:hover { color: var(--text-main); background: rgba(99, 102, 241, 0.08); }
-  
-  /* Distinct Active Colors for Sections */
-  .nav-btn[data-target="pdf"].active { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); }
-  .nav-btn[data-target="image"].active { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); }
-  .nav-btn[data-target="signature"].active { background: linear-gradient(135deg, #0f172a 0%, #334155 100%); color: white; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3); }
-  .nav-btn[data-target="text"].active { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3); }
-  .nav-btn[data-target="currency"].active { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
-  .nav-btn[data-target="units"].active { background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); color: white; box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3); }
-  .nav-btn[data-target="education"].active { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: white; box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3); }
-  .nav-btn[data-target="utilities"].active { background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: white; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); }
-  .nav-btn.ai-nav-btn.active { background: var(--ai-gradient); color: white; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4); }
-
-  .tool-section { display: none; animation: slideUp 0.5s ease forwards; }
-  .tool-section.active { display: block; }
-
-  .card {
-    background: var(--card-bg); border-radius: var(--radius-lg); padding: 30px;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: var(--card-border);
-    margin-bottom: 25px; backdrop-filter: blur(10px);
-  }
-  
-  .section-title {
-    font-size: 1.25rem; font-weight: 700; margin-bottom: 20px; padding-bottom: 12px;
-    border-bottom: 2px solid rgba(0,0,0,0.04); display: flex; align-items: center; gap: 10px;
-  }
-  .section-title::before { content: ''; display: block; width: 6px; height: 24px; background: var(--primary-gradient); border-radius: 4px; }
-  .ai-title::before { background: var(--ai-gradient); }
-
-  label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; }
-  
-  input, select, textarea {
-    width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: var(--radius-md);
-    font-family: inherit; font-size: 1rem; background: #f8fafc; transition: var(--transition);
-    box-sizing: border-box;
-  }
-  input:focus, select:focus, textarea:focus { outline: none; border-color: #8b5cf6; background: white; }
-  
-  /* Color input specific */
-  input[type="color"] { padding: 0; height: 45px; cursor: pointer; }
-  
-  textarea { resize: vertical; min-height: 120px; }
-
-  button.action-btn {
-    background: var(--primary-gradient); color: white; border: none; padding: 12px 24px;
-    border-radius: var(--radius-sm); font-weight: 600; font-size: 1rem; cursor: pointer;
-    transition: var(--transition); display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  }
-  button.action-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4); }
-  
-  button.violet-btn {
-    background: var(--violet-gradient); color: white; border: none; padding: 12px 24px;
-    border-radius: var(--radius-sm); font-weight: 600; font-size: 1rem; cursor: pointer;
-    transition: var(--transition); display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    box-shadow: 0 4px 10px var(--violet-shadow);
-  }
-  button.violet-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px var(--violet-shadow); }
-
-  button.ai-btn { background: var(--ai-gradient); }
-  
-  button.secondary-btn {
-    background: white; color: var(--text-main); border: 2px solid #e2e8f0; padding: 10px 20px;
-    border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; transition: var(--transition);
-  }
-  button.secondary-btn:hover { border-color: #cbd5e1; background: #f8fafc; }
-
-  .row { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; margin-top: 20px; }
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
-  
-  .status { font-size: 0.9rem; font-weight: 500; margin-left: 10px; }
-  .status.error { color: var(--danger); }
-  .status.success { color: var(--success); }
-  .status.loading { color: #8b5cf6; }
-  
-  .preview-area {
-    margin-top: 20px; padding: 20px; background: #f8fafc; border-radius: var(--radius-md);
-    border: 2px dashed #e2e8f0; min-height: 80px; display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-  }
-  .preview-img { max-width: 100%; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-
-  .emi-box { background: #f0f9ff; padding: 15px; border-radius: 12px; text-align: center; border: 1px solid #bae6fd; }
-  .emi-val { font-size: 1.5rem; font-weight: 700; color: #0284c7; margin-top: 5px; }
-  .emi-label { font-size: 0.8rem; text-transform: uppercase; color: #64748b; }
-
-  .ai-response { background: #f0fdfa; border: 1px solid #ccfbf1; padding: 20px; border-radius: 12px; margin-top: 15px; white-space: pre-wrap; }
-  
-  #signature-pad { border: 2px solid #e2e8f0; border-radius: 8px; background: white; cursor: crosshair; touch-action: none; }
-  
-  /* Exif Table */
-  .exif-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-  .exif-table th, .exif-table td { padding: 8px; text-align: left; border-bottom: 1px solid #e2e8f0; }
-  .exif-table th { color: var(--text-muted); width: 40%; }
-  
-  /* Calculator Styles */
-  .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px; }
-  .calc-btn { padding: 15px; font-size: 1.2rem; border: 1px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s; font-weight: 600; }
-  .calc-btn:hover { background: #f1f5f9; }
-  .calc-btn.op { background: #f0f9ff; color: #0284c7; }
-  .calc-btn.eq { background: var(--primary-gradient); color: white; border: none; grid-column: span 2; }
-  .calc-display { width: 100%; padding: 15px; font-size: 1.5rem; text-align: right; border: 2px solid #cbd5e1; border-radius: 8px; margin-bottom: 10px; background: #fff; }
-  
-  .edu-tab { display: none; animation: slideIn 0.3s ease-out; }
-  .edu-tab.active { display: block; }
-
-  footer {
-    text-align: center; margin-top: 40px; padding-bottom: 20px; color: var(--text-muted); font-size: 0.9rem; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 20px;
-  }
-
-  /* Toast Notifications */
-  .toast-container { position: fixed; top: 20px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
-  .toast { background: white; padding: 14px 20px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); border-left: 5px solid #6366f1; animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); font-size: 0.95rem; font-weight: 500; display: flex; align-items: center; min-width: 280px; pointer-events: auto; }
-  .toast.error { border-left-color: #ef4444; }
-  .toast.success { border-left-color: #10b981; }
-  .toast.loading { border-left-color: #f59e0b; }
-  
-  @media(max-width: 700px) { 
-      .grid-2, .grid-3 { grid-template-columns: 1fr; }
-      .api-key-container { position: relative; justify-content: center; margin-bottom: 15px; right: auto; }
-      
-      /* Adjusted Header padding for mobile */
-      header { padding-top: 40px; }
-      
-      /* Mobile Nav Button sizing */
-      .nav-btn { padding: 8px 16px; font-size: 0.85rem; }
-  }
-  @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-  @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-  @keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
-  @keyframes slideIn { from { transform: translateX(10px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-  @keyframes fadeOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-20px); } }
+    .stButton>button { width: 100%; border-radius: 12px; height: 3em; }
+    .stTextInput>div>div>input { border-radius: 10px; }
+    h1 { color: #6366f1; }
+    .css-1d391kg { padding-top: 1rem; }
 </style>
+""", unsafe_allow_html=True)
 
-<!-- External Libraries -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.2/marked.min.js"></script>
-<!-- Imgly BG Removal -->
-<script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.0.5/dist/imgly-background-removal.min.js"></script>
-<!-- NEW Libraries -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
-<!-- MD5 Library -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/spark-md5/3.0.2/spark-md5.min.js"></script>
-</head>
-<body>
+# --- SIDEBAR & API KEYS ---
+with st.sidebar:
+    st.title("𝕔𝕠𝕟𝕧𝕖𝕣𝕥𝕟𝕖𝕩𝕥.py")
+    st.caption("“Your Everyday Next-Gen Tool⇄Hub”")
+    
+    api_key = st.text_input("Gemini API Key", type="password", help="Get from Google AI Studio")
+    if api_key:
+        genai.configure(api_key=api_key)
+    
+    st.divider()
+    
+    selected_tool = st.radio("Select Tool", [
+        "📄 PDF Tools",
+        "🖼️ Image Tools", 
+        "🤖 AI Studio",
+        "📝 Text & OCR",
+        "💰 Finance",
+        "⚖️ Units & Calc"
+    ])
+    
+    st.info("Python Port of convertnext.in")
 
-<div class="wrap">
-  <header>
-    <div class="api-key-container">
-        <input type="password" id="user-api-key" class="api-key-input" placeholder="Paste Gemini API Key" onchange="saveApiKey()">
-    </div>
-    <img id="logo-img" src="https://ik.imagekit.io/bi3rpbyeo/ChatGPT_Image_Nov_19__2025__09_53_31_AM-removebg-preview.png" alt="Logo"> 
-    <h1>convertnext.in</h1>
-    <div class="subtitle">Secure Client-Side Utility Hub</div>
-  </header>
+# --- FUNCTIONS ---
 
-  <!-- MAIN NAVIGATION (Added 'main-nav' class) -->
-  <nav class="nav-bar main-nav">
-    <button class="nav-btn active" data-target="pdf">📄 PDF</button>
-    <button class="nav-btn" data-target="image">🖼️ Image</button>
-    <button class="nav-btn" data-target="signature">✒️ Signature</button>
-    <button class="nav-btn" data-target="text">📝 Text</button>
-    <button class="nav-btn" data-target="currency">💰 Finance</button>
-    <button class="nav-btn" data-target="units">⚖️ Units</button>
-    <button class="nav-btn" data-target="education">🎓 Education</button>
-    <button class="nav-btn" data-target="utilities">🛠️ Utilities</button>
-  </nav>
+def get_image_download_link(img, filename, text):
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    return st.download_button(label=text, data=buffered.getvalue(), file_name=filename, mime="image/png")
 
-  <!-- SECTION: PDF TOOLS -->
-  <section id="pdf" class="tool-section active">
-    <!-- ... existing PDF content ... -->
-    <div class="card">
-      <div class="section-title">PDF Management</div>
-      <div class="grid-2">
-          <div><label>Select PDFs</label><input id="pdf-merge-input" type="file" accept="application/pdf" multiple /></div>
-      </div>
-      <div class="row">
-        <button id="pdf-merge-btn" class="action-btn">Merge Files</button>
-        <button id="pdf-split-btn" class="violet-btn">Split PDF</button>
-        <span id="pdf-merge-status" class="status"></span>
-      </div>
-    </div>
-    <div class="card">
-      <div class="section-title">Images to PDF</div>
-      <label>Select Images</label><input id="imgs-to-pdf-input" type="file" accept="image/*" multiple />
-      <div class="row"><button id="imgs-to-pdf-btn" class="action-btn">Generate PDF</button></div>
-    </div>
-    <div class="card">
-      <div class="section-title">PDF Compressor</div>
-      <label>Select PDF File</label>
-      <input id="pdf-compress-file" type="file" accept="application/pdf" />
-      <div class="grid-2" style="margin-top: 15px; align-items: start;">
-         <div><label>Compression Mode</label><select id="pdf-compress-mode" onchange="togglePdfCompressMode()"><option value="quality">By Quality Level</option><option value="size">By Target Size (KB/MB)</option></select></div>
-         <div id="pdf-mode-quality"><label>Level</label><select id="pdf-compress-level"><option value="0.8">Low Compression (Better Quality)</option><option value="0.5" selected>Medium Compression (Balanced)</option><option value="0.2">High Compression (Smallest Size)</option></select></div>
-         <div id="pdf-mode-size" style="display:none;"><label>Target Size</label><div style="display:flex; gap:5px;"><input id="pdf-target-val" type="number" placeholder="e.g. 200" style="flex:1"><select id="pdf-target-unit" style="width:90px;"><option value="KB">KB</option><option value="MB">MB</option></select></div></div>
-      </div>
-      <div class="row"><button id="pdf-compress-btn" class="action-btn" style="width:100%;">Compress PDF</button></div>
-      <div id="pdf-compress-status" class="status" style="margin-top:10px;"></div>
-    </div>
-    <div class="card">
-        <div class="section-title">Unlock / Edit PDF</div>
-        <div class="grid-2">
-            <div><label>Unlock (Req. Pass)</label><input id="pdf-unlock-file" type="file"><input id="pdf-unlock-pass" type="password" placeholder="Password" style="margin-top:5px;"></div>
-            <div><label>Add Watermark</label><input id="pdf-edit-file" type="file"><input id="pdf-edit-text" placeholder="Watermark Text" style="margin-top:5px;"></div>
-        </div>
-        <div class="row"><button id="pdf-unlock-btn" class="violet-btn">Unlock PDF</button><button id="pdf-edit-btn" class="violet-btn">Add Watermark</button></div>
-    </div>
-    <div class="card">
-      <div class="section-title">PDF Text Extraction</div>
-      <input id="pdf-extract-file" type="file" accept="application/pdf" />
-      <div class="row"><button id="pdf-extract-btn" class="action-btn">Extract Text</button></div>
-      <textarea id="pdf-extract-out" readonly placeholder="Text content..." style="margin-top:15px;"></textarea>
-      <div class="row" style="justify-content: flex-end; border-top: 1px solid #e2e8f0; padding-top: 15px; margin-top: 15px;"><button id="btn-send-to-ai" class="action-btn ai-btn" style="display:none;">✨ Analyze with AI</button></div>
-    </div>
-    <div class="card">
-      <div class="section-title">PDF to Image Converter</div>
-      <label>Select PDF</label><input id="pdf-to-img-file" type="file" accept="application/pdf" />
-      <div class="row">
-         <div style="width: 140px;"><label>Quality Scale</label><input id="pdf-render-scale" type="number" value="1.5" step="0.5" min="1" max="3"></div>
-        <button id="pdf-render-btn" class="action-btn" style="margin-top: 24px;">Convert Pages</button>
-      </div>
-      <div id="pdf-pages-output" class="preview-area"></div>
-    </div>
-  </section>
-
-  <!-- SECTION: IMAGE TOOLS -->
-  <section id="image" class="tool-section">
-    <!-- ... existing image content ... -->
-    <div class="card">
-        <div class="section-title ai-title">✨ AI Vision (Image Analysis)</div>
-        <label>Upload an Image</label>
-        <input id="ai-image-file" type="file" accept="image/*" />
-        <div class="grid-2" style="margin-top:15px;">
-            <div id="ai-image-preview" class="preview-area" style="min-height:200px;"><span class="status">Image Preview</span></div>
-            <div><label>Ask a question about the image</label><textarea id="ai-image-prompt" style="height:100px;" placeholder="Describe this image..."></textarea><button id="ai-vision-btn" class="action-btn ai-btn" style="width:100%; margin-top:10px;">✨ Analyze Image</button></div>
-        </div>
-        <div id="ai-vision-output-container" style="display:none;"><label style="margin-top:20px;">AI Analysis</label><div id="ai-vision-output" class="ai-response"></div></div>
-    </div>
-    <div class="card">
-        <div class="section-title ai-title">✨ Free AI Image Generator</div>
-        <label>Describe the image you want to create</label>
-        <textarea id="ai-gen-prompt" placeholder="A futuristic city with flying cars, cyberpunk style, 4k render..." style="height:80px;"></textarea>
-        <div class="row"><button id="btn-ai-gen" class="action-btn ai-btn" style="width:100%">✨ Generate Image (Free)</button></div>
-        <div id="ai-gen-result" class="preview-area" style="min-height:200px; display:none;"></div>
-    </div>
-    <div class="card">
-      <div class="section-title">📝 OCR (Image to Text)</div>
-      <label>Select Image</label>
-      <input id="ocr-file" type="file" accept="image/*" />
-      <div class="grid-2" style="margin-top:15px;">
-          <div><label>Language</label><select id="ocr-lang"><option value="eng">English</option><option value="hin">Hindi</option><option value="mar">Marathi</option><option value="ben">Bengali</option><option value="guj">Gujarati</option><option value="kan">Kannada</option><option value="mal">Malayalam</option><option value="pan">Punjabi</option><option value="san">Sanskrit</option><option value="tam">Tamil</option><option value="tel">Telugu</option><option value="urd">Urdu</option><option value="spa">Spanish</option><option value="fra">French</option></select></div>
-          <div style="display:flex; align-items:flex-end;"><button id="btn-ocr" class="action-btn" style="width:100%">Extract Text</button></div>
-      </div>
-      <div id="ocr-progress" style="margin-top:10px; font-size:0.85rem; color:var(--text-muted);"></div>
-      <textarea id="ocr-result" readonly placeholder="Extracted text..." style="margin-top:15px; min-height:150px;"></textarea>
-    </div>
-    <div class="card">
-        <div class="section-title">✂️ Crop & Rotate</div>
-        <label>Select Image</label>
-        <input id="crop-file" type="file" accept="image/*" />
-        <div id="crop-container" style="margin-top:20px; max-height:500px; display:none; background:#333;"><img id="crop-img" style="max-width:100%; display:block;"></div>
-        <div id="crop-controls" class="row" style="display:none;"><button class="secondary-btn" onclick="cropper.rotate(-90)">↺ Left</button><button class="secondary-btn" onclick="cropper.rotate(90)">↻ Right</button><button class="secondary-btn" onclick="cropper.reset()">Reset</button><button id="btn-crop-save" class="violet-btn">✂️ Crop & Download</button></div>
-    </div>
-    <div class="card">
-        <div class="section-title">ℹ️ EXIF Metadata Viewer</div>
-        <label>Select Image (JPG/JPEG)</label>
-        <input id="exif-file" type="file" accept="image/jpeg" />
-        <div id="exif-output" style="margin-top:15px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:15px; display:none;"></div>
-    </div>
-    <div class="card">
-        <div class="section-title">🐸 Meme Generator</div>
-        <label>Select Image</label>
-        <input id="meme-file" type="file" accept="image/*" />
-        <div class="grid-2" style="margin-top:15px;"><div><label>Top Text</label><input id="meme-top" type="text" placeholder="TOP TEXT"></div><div><label>Bottom Text</label><input id="meme-bottom" type="text" placeholder="BOTTOM TEXT"></div></div>
-        <div class="row"><button id="btn-meme-gen" class="action-btn">Generate Meme</button></div>
-        <div id="meme-preview" class="preview-area" style="margin-top:20px;"></div>
-    </div>
-    <div class="card">
-        <div class="section-title">🖼️ Image Collage</div>
-        <label>Select Images (2-4)</label>
-        <input id="collage-files" type="file" accept="image/*" multiple />
-        <div class="row"><button id="btn-collage" class="violet-btn">Create Collage</button></div>
-        <div id="collage-preview" class="preview-area" style="margin-top:20px;"></div>
-    </div>
-    <div class="card">
-      <div class="section-title">🔄 Image Converter</div>
-      <label>Select Image</label><input id="img-conv-file" type="file" accept="image/*" />
-      <div class="grid-2" style="margin-top:15px;"><div><label>Output Format</label><select id="img-conv-format"><option value="image/png">PNG</option><option value="image/jpeg">JPG</option><option value="image/webp">WEBP</option><option value="image/bmp">BMP</option></select></div><div><label>Quality</label><input id="img-conv-quality" type="number" min="0.1" max="1" step="0.1" value="0.9"></div></div>
-      <div class="row"><button id="btn-img-conv" class="action-btn">Convert & Download</button></div>
-    </div>
-    <div class="card">
-      <div class="section-title ai-title">🎨 AI Background Studio</div>
-      <label>1. Upload Image</label><input id="bg-studio-file" type="file" accept="image/*">
-      <div class="grid-2" style="margin-top:15px;"><div><label>2. Background Mode</label><select id="bg-studio-mode" onchange="updateBgStudio()"><option value="transparent">Transparent</option><option value="color">Solid Color</option><option value="image">Custom Image</option></select></div><div id="bg-studio-opts-color" style="display:none;"><label>Select Color</label><input id="bg-studio-color" type="color" value="#ffffff" oninput="updateBgStudio()" style="height:45px; width:100%;"></div><div id="bg-studio-opts-image" style="display:none;"><label>Upload Background</label><input id="bg-studio-bg-img" type="file" accept="image/*" onchange="updateBgStudio()"></div></div>
-      <div id="bg-studio-preview" class="preview-area" style="min-height:200px;"><span class="status">Upload an image to start...</span></div>
-      <div class="row"><button id="btn-bg-studio-dl" class="action-btn ai-btn" style="display:none;">Download Result</button></div>
-    </div>
-    <div class="card"><div class="section-title">📅 Add Name & DOB</div><label>Photo</label><input id="namedob-file" type="file" accept="image/*"><div class="grid-2" style="margin-top:15px;"><div><label>Name</label><input id="namedob-name" type="text"></div><div><label>Date of Birth</label><input id="namedob-date" type="text"></div></div><div class="row"><button id="btn-namedob" class="action-btn">Generate</button></div></div>
-    <div class="card"><div class="section-title">🖨️ DPI Converter</div><label>Image</label><input id="dpi-file" type="file" accept="image/*"><div class="grid-3" style="margin-top:15px;"><div><label>DPI</label><input id="dpi-val" type="number" value="300"></div><div><label>Width (cm)</label><input id="dpi-w" type="number" value="3.5"></div><div><label>Height (cm)</label><input id="dpi-h" type="number" value="4.5"></div></div><div class="row"><button id="btn-dpi" class="action-btn">Convert</button></div></div>
-    <div class="card"><div class="section-title">🛂 Passport Photo Maker</div><label>Upload Photo</label><input id="passport-file" type="file" accept="image/*" /><div class="row"><button id="btn-passport-make" class="action-btn">Create</button></div></div>
-    <div class="card"><div class="section-title">Advanced Resizer</div><label>Image</label><input id="resize-file" type="file" accept="image/*" /><div class="grid-3" style="margin-top:15px;"><div><label>Unit</label><select id="resize-unit"><option value="px">Pixels</option><option value="cm">CM</option><option value="mm">MM</option></select></div><div><label>Width</label><input id="resize-w" type="number"></div><div><label>Height</label><input id="resize-h" type="number"></div></div><div class="row"><button id="btn-resize-apply" class="action-btn">Resize</button></div></div>
-    <div class="card"><div class="section-title">Reduce Size (KB)</div><label>Image</label><input id="kb-file" type="file" accept="image/*" /><div class="grid-2" style="margin-top:15px;"><div><label>Target KB</label><input id="kb-target" type="number"></div><div style="display:flex; align-items:flex-end;"><button id="btn-kb-apply" class="action-btn" style="width:100%">Compress</button></div></div><div id="kb-status" class="status"></div></div>
-    <div class="card"><div class="section-title ai-title">✨ AI Enhancer</div><input id="enhance-file" type="file" accept="image/*" /><div class="row"><button id="btn-enhance" class="action-btn ai-btn">Auto Enhance</button></div><div id="enhance-preview" class="preview-area"></div></div>
-    <div class="card"><div class="section-title">QR Code</div><input id="qr-text" type="text" placeholder="https://..."><div class="row"><button id="qr-download" class="action-btn" style="display:none;">Download</button></div><div id="qr-preview" class="preview-area" style="min-height:150px;"></div></div>
-  </section>
-
-  <!-- SECTION: SIGNATURE TOOLS -->
-  <section id="signature" class="tool-section">
-    <!-- ... existing signature content ... -->
-    <div class="card"><div class="section-title">✒️ Create Signature</div><div style="display:flex; justify-content:space-between;"><label>Draw below</label><button id="btn-sig-clear" class="secondary-btn">Clear</button></div><canvas id="signature-pad" width="600" height="200" style="width:100%; height:200px; margin-top:5px;"></canvas><div class="grid-2" style="margin-top:10px;"><div><label>Color</label><select id="sig-color"><option value="black">Black</option><option value="blue">Blue</option><option value="red">Red</option></select></div><div><label>Width</label><input id="sig-width" type="range" min="1" max="5" value="2"></div></div><div class="row"><button id="btn-sig-download" class="action-btn">Download</button></div></div>
-    <div class="card"><div class="section-title">Resize Signature</div><label>Upload Signature</label><input id="sig-resize-file" type="file" accept="image/*"><div class="grid-2" style="margin-top:15px;"><div><label>Width</label><input id="sig-w" type="number" value="300"></div><div><label>Height</label><input id="sig-h" type="number" value="100"></div></div><div class="row"><button id="btn-sig-resize" class="action-btn">Resize</button></div></div>
-  </section>
-
-  <!-- SECTION: TEXT TOOLS -->
-  <section id="text" class="tool-section">
-    <!-- ... existing text content ... -->
-    <div class="card"><div class="section-title ai-title">✨ AI Text Lab</div><label>Input Text</label><textarea id="ai-text-input" placeholder="Paste text..."></textarea><div class="row"><button class="violet-btn" onclick="callGeminiText('Summarize this text concisely:')">✨ Summarize</button><button class="violet-btn" onclick="callGeminiText('Fix grammar and improve style:')">Fix Grammar</button><button class="violet-btn" onclick="callGeminiText('Extract key items:')">Extract Items</button></div><div style="margin-top:20px; padding-top:20px; border-top:1px dashed #e2e8f0;"><div class="grid-2" style="align-items: flex-end;"><div><label>Translate To:</label><select id="ai-trans-lang" style="width: 100%;"><option value="English">English</option><option value="Hindi">Hindi</option><option value="Marathi">Marathi</option><option value="Bengali">Bengali</option><option value="Telugu">Telugu</option><option value="Tamil">Tamil</option><option value="Urdu">Urdu</option><option value="Gujarati">Gujarati</option><option value="Kannada">Kannada</option><option value="Malayalam">Malayalam</option><option value="Punjabi">Punjabi</option><option value="Spanish">Spanish</option><option value="French">French</option><option value="German">German</option><option value="Japanese">Japanese</option><option value="Chinese">Chinese</option><option value="Russian">Russian</option><option value="Arabic">Arabic</option></select></div><div><button class="violet-btn" style="width:100%;" onclick="translateText()">🌐 Translate</button></div></div></div><div id="ai-text-output-container" style="display:none;"><label style="margin-top:20px;">AI Response</label><div id="ai-text-output" class="ai-response"></div></div></div>
-    <div class="card"><div class="section-title">Text Tools</div><textarea id="text-in" placeholder="Paste text..."></textarea><div class="row"><button class="secondary-btn" onclick="transformText('upper')">UPPER</button><button class="secondary-btn" onclick="transformText('lower')">lower</button><button class="secondary-btn" onclick="transformText('title')">Title Case</button><button class="secondary-btn" onclick="transformText('base64')">Base64</button><button class="secondary-btn" onclick="transformText('json')">Format JSON</button></div><textarea id="text-out" readonly placeholder="Result..." style="margin-top:15px;"></textarea></div>
-  </section>
-
-  <!-- SECTION: FINANCE -->
-  <section id="currency" class="tool-section">
-    <!-- ... existing finance content ... -->
-    <div class="card"><div class="section-title">Loan EMI Calculator</div><div class="grid-3"><div><label>Loan Amount</label><input id="emi-p" type="number" value="100000"></div><div><label>Interest (%)</label><input id="emi-r" type="number" value="8.5" step="0.1"></div><div><label>Period</label><div style="display:flex; gap:5px;"><input id="emi-n" type="number" value="5" style="flex:1"><select id="emi-period-unit" style="width:90px;"><option value="years">Years</option><option value="months">Months</option></select></div></div></div><button id="btn-emi-calc" class="action-btn" style="width:100%; margin-top:15px;">Calculate EMI</button><div id="emi-results" class="grid-3" style="margin-top: 20px; display:none;"><div class="emi-box"><div class="emi-label">EMI</div><div id="out-emi" class="emi-val">-</div></div><div class="emi-box"><div class="emi-label">Interest</div><div id="out-interest" class="emi-val">-</div></div><div class="emi-box"><div class="emi-label">Total</div><div id="out-total" class="emi-val">-</div></div></div></div>
-    <div class="card"><div class="section-title">Compound Interest</div><div class="grid-2"><div><label>Principal</label><input id="ci-p" type="number" value="10000"></div><div><label>Rate (%)</label><input id="ci-r" type="number" value="5"></div></div><div class="grid-2" style="margin-top:15px;"><div><label>Years</label><input id="ci-t" type="number" value="10"></div><div><label>Frequency</label><select id="ci-n"><option value="1">Yearly</option><option value="2">Half-Yearly</option><option value="4">Quarterly</option><option value="12">Monthly</option></select></div></div><button id="btn-ci-calc" class="action-btn" style="width:100%; margin-top:15px;">Calculate</button><div id="ci-results" class="grid-2" style="margin-top:20px; display:none;"><div class="emi-box"><div class="emi-label">Total Amount</div><div id="out-ci-amount" class="emi-val">-</div></div><div class="emi-box"><div class="emi-label">Interest Earned</div><div id="out-ci-interest" class="emi-val" style="color:var(--success)">-</div></div></div></div>
-    <div class="card"><div class="section-title">🇮🇳 Tax Calculator (FY 25-26)</div><div class="grid-2"><div><label>Income (₹)</label><input id="tax-income" type="number" value="750000"></div><div style="display:flex; align-items:flex-end;"><button id="btn-tax-calc" class="action-btn" style="width:100%">Calculate</button></div></div><div id="tax-results" style="margin-top:15px; display:none; background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:15px;"><div style="display:flex; justify-content:space-between;"><span class="status">Tax:</span><span id="out-tax-main" style="font-weight:bold;">0</span></div><div style="display:flex; justify-content:space-between;"><span class="status">Cess:</span><span id="out-tax-cess">0</span></div><hr style="border-top:1px dashed #ccc; margin:10px 0;"><div style="display:flex; justify-content:space-between;"><span style="font-weight:bold; color:var(--danger);">Total:</span><span id="out-tax-total" style="font-weight:bold; font-size:1.2rem; color:var(--danger);">0</span></div></div></div>
-    <div class="card"><div class="section-title">Currency Converter</div><div class="grid-2"><div><label>Amount</label><input id="cur-amount" type="number" value="1"></div><div><label>From</label><select id="cur-from"><option>USD</option></select></div></div><div class="grid-2" style="margin-top:15px;"><div><label>To</label><select id="cur-to"><option>INR</option></select></div><div style="display:flex; align-items:flex-end;"><button id="btn-convert-cur" class="action-btn" style="width:100%">Convert</button></div></div><div style="margin-top:15px; padding:15px; background:#f0fdf4; border-radius:12px; text-align:center;"><div id="cur-result" style="font-size:1.5rem; font-weight:bold; color:var(--success)">...</div></div></div>
-  </section>
-
-  <!-- SECTION: UNITS -->
-  <section id="units" class="tool-section">
-    <!-- ... existing units content ... -->
-      <div class="card">
-          <div class="section-title">Unit Converter</div>
-          <div class="grid-2">
-              <div><label>Type</label><select id="unit-category"></select></div>
-              <div><label>Value</label><input type="number" id="unit-input" value="1"></div>
-          </div>
-          <div class="grid-2" style="margin-top:15px;">
-              <div><label>From</label><select id="unit-from"></select></div>
-              <div><label>To</label><select id="unit-to"></select></div>
-          </div>
-          <button id="btn-convert-unit" class="action-btn" style="width:100%; margin-top:15px;">Convert</button>
-          <div style="margin-top:15px; text-align:center; font-size:1.5rem; font-weight:bold; color:var(--text-main)" id="unit-result">-</div>
-      </div>
-  </section>
-
-  <!-- SECTION: EDUCATION (NEW) -->
-  <section id="education" class="tool-section">
-    <div class="card">
-        <div class="section-title">🎓 Education & Math Tools</div>
-        <div class="nav-bar" style="box-shadow:none; background:#f1f5f9; margin-bottom:20px; flex-wrap:wrap;">
-             <button class="nav-btn active" onclick="switchEduTab('basic', this)">🔢 Math</button>
-             <button class="nav-btn" onclick="switchEduTab('algebra', this)">✖️ Algebra</button>
-             <button class="nav-btn" onclick="switchEduTab('geometry', this)">📐 Geometry</button>
-             <button class="nav-btn" onclick="switchEduTab('stats', this)">📊 Statistics</button>
-             <button class="nav-btn" onclick="switchEduTab('grades', this)">🎓 Grades & CGPA</button>
-             <button class="nav-btn" onclick="switchEduTab('converters', this)">🔄 Binary/Hex</button>
-        </div>
-
-        <!-- 1. BASIC MATH -->
-        <div id="edu-basic" class="edu-tab active">
-            <!-- ... existing basic calculator ... -->
-            <label>Scientific Calculator</label>
-            <input type="text" id="calc-display" class="calc-display" readonly value="0">
-            <div class="calc-grid">
-                <button class="calc-btn op" onclick="calcInput('AC')">AC</button>
-                <button class="calc-btn op" onclick="calcInput('(')">(</button>
-                <button class="calc-btn op" onclick="calcInput(')')">)</button>
-                <button class="calc-btn op" onclick="calcInput('/')">÷</button>
-                
-                <button class="calc-btn" onclick="calcInput('7')">7</button>
-                <button class="calc-btn" onclick="calcInput('8')">8</button>
-                <button class="calc-btn" onclick="calcInput('9')">9</button>
-                <button class="calc-btn op" onclick="calcInput('*')">×</button>
-                
-                <button class="calc-btn" onclick="calcInput('4')">4</button>
-                <button class="calc-btn" onclick="calcInput('5')">5</button>
-                <button class="calc-btn" onclick="calcInput('6')">6</button>
-                <button class="calc-btn op" onclick="calcInput('-')">-</button>
-                
-                <button class="calc-btn" onclick="calcInput('1')">1</button>
-                <button class="calc-btn" onclick="calcInput('2')">2</button>
-                <button class="calc-btn" onclick="calcInput('3')">3</button>
-                <button class="calc-btn op" onclick="calcInput('+')">+</button>
-                
-                <button class="calc-btn" onclick="calcInput('0')">0</button>
-                <button class="calc-btn" onclick="calcInput('.')">.</button>
-                <button class="calc-btn eq" onclick="calcCalculate()">=</button>
-            </div>
-            <div style="margin-top:10px; display:flex; gap:5px; overflow-x:auto; padding-bottom:5px;">
-                <button class="secondary-btn" onclick="calcInput('Math.sin(')">sin</button>
-                <button class="secondary-btn" onclick="calcInput('Math.cos(')">cos</button>
-                <button class="secondary-btn" onclick="calcInput('Math.tan(')">tan</button>
-                <button class="secondary-btn" onclick="calcInput('Math.log10(')">log</button>
-                <button class="secondary-btn" onclick="calcInput('Math.sqrt(')">√</button>
-                <button class="secondary-btn" onclick="calcInput('**')">^</button>
-                <button class="secondary-btn" onclick="calcInput('Math.PI')">π</button>
-            </div>
-
-            <hr style="margin:20px 0; border-top:1px dashed #ccc">
+# --- 1. PDF TOOLS ---
+if selected_tool == "📄 PDF Tools":
+    st.header("📄 PDF Management")
+    
+    tab1, tab2, tab3 = st.tabs(["Merge PDFs", "Extract Text", "Images to PDF"])
+    
+    with tab1:
+        st.subheader("Merge Files")
+        uploaded_files = st.file_uploader("Select PDFs", type="pdf", accept_multiple_files=True)
+        if uploaded_files and st.button("Merge PDFs"):
+            merger = pypdf.PdfWriter()
+            for pdf in uploaded_files:
+                merger.append(pdf)
             
-            <label>General Percentage (What is X% of Y?)</label>
-            <div class="grid-3" style="align-items:center">
-                <div>What is <input type="number" id="perc-val" style="width:60px; display:inline-block" value="20">%</div>
-                <div>of <input type="number" id="perc-tot" style="width:80px; display:inline-block" value="100">?</div>
-                <button class="secondary-btn" onclick="calcPercentage()">Calculate</button>
-            </div>
-            <div id="perc-res" style="text-align:center; margin-top:10px; font-weight:bold; color:var(--success)"></div>
-        </div>
+            buffer = io.BytesIO()
+            merger.write(buffer)
+            st.success("Merged successfully!")
+            st.download_button("Download Merged PDF", data=buffer.getvalue(), file_name="merged.pdf", mime="application/pdf")
 
-        <!-- 2. ALGEBRA & NUMBER THEORY -->
-        <div id="edu-algebra" class="edu-tab">
-            <!-- ... existing algebra ... -->
-             <div class="grid-2">
-                <div>
-                    <label>Number Properties (Factors, Prime)</label>
-                    <input type="number" id="num-prop-in" placeholder="Enter Integer">
-                    <button class="secondary-btn" style="width:100%; margin-top:5px" onclick="calcNumProps()">Analyze</button>
-                    <div id="num-prop-res" style="margin-top:10px; font-size:0.9rem; white-space:pre-wrap;"></div>
-                </div>
-                <div>
-                     <label>GCD & LCM</label>
-                     <input type="text" id="gcd-in" placeholder="e.g. 12, 18, 24">
-                     <button class="secondary-btn" style="width:100%; margin-top:5px" onclick="calcGcdLcm()">Calculate</button>
-                     <div id="gcd-res" style="margin-top:10px; font-size:0.9rem;"></div>
-                </div>
-             </div>
-             <hr style="margin:20px 0; border-top:1px dashed #ccc">
-             <label>Quadratic Equation Solver (ax² + bx + c = 0)</label>
-             <div class="grid-3">
-                 <input type="number" id="quad-a" placeholder="a">
-                 <input type="number" id="quad-b" placeholder="b">
-                 <input type="number" id="quad-c" placeholder="c">
-             </div>
-             <button class="secondary-btn" style="width:100%; margin-top:10px" onclick="calcQuadratic()">Solve</button>
-             <div id="quad-res" style="margin-top:10px; text-align:center; font-weight:bold"></div>
-        </div>
+    with tab2:
+        st.subheader("Extract Text")
+        pdf_file = st.file_uploader("Select PDF for Text", type="pdf")
+        if pdf_file:
+            reader = pypdf.PdfReader(pdf_file)
+            text = ""
+            for page in reader.pages:
+                text += page.extract_text() + "\n\n"
+            st.text_area("Extracted Text", text, height=300)
 
-        <!-- 3. GEOMETRY -->
-        <div id="edu-geometry" class="edu-tab">
-            <!-- ... existing geometry ... -->
-             <div class="grid-2">
-                 <div>
-                     <label>Circle</label>
-                     <input type="number" id="geo-r" placeholder="Radius (r)">
-                     <button class="secondary-btn" style="width:100%; margin-top:5px" onclick="calcCircle()">Calc Area/Circum.</button>
-                     <div id="geo-circ-res" style="margin-top:5px; font-size:0.85rem"></div>
-                 </div>
-                 <div>
-                     <label>Right Triangle (Pythagoras)</label>
-                     <div style="display:flex; gap:5px"><input type="number" id="geo-a" placeholder="a"><input type="number" id="geo-b" placeholder="b"></div>
-                     <button class="secondary-btn" style="width:100%; margin-top:5px" onclick="calcPythagoras()">Find Hypotenuse (c)</button>
-                     <div id="geo-pyth-res" style="margin-top:5px; font-size:0.85rem"></div>
-                 </div>
-             </div>
-             <hr style="margin:20px 0; border-top:1px dashed #ccc">
-             <div class="grid-2">
-                 <div>
-                     <label>Rectangle Area/Perim</label>
-                     <div style="display:flex; gap:5px"><input type="number" id="geo-l" placeholder="L"><input type="number" id="geo-w" placeholder="W"></div>
-                     <button class="secondary-btn" style="width:100%; margin-top:5px" onclick="calcRect()">Calculate</button>
-                     <div id="geo-rect-res" style="margin-top:5px; font-size:0.85rem"></div>
-                 </div>
-                 <div>
-                     <label>Triangle Area</label>
-                     <div style="display:flex; gap:5px"><input type="number" id="geo-tb" placeholder="Base"><input type="number" id="geo-th" placeholder="Height"></div>
-                     <button class="secondary-btn" style="width:100%; margin-top:5px" onclick="calcTriArea()">Calculate</button>
-                     <div id="geo-tri-res" style="margin-top:5px; font-size:0.85rem"></div>
-                 </div>
-             </div>
-        </div>
+    with tab3:
+        st.subheader("Images to PDF")
+        img_files = st.file_uploader("Select Images", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True)
+        if img_files and st.button("Convert to PDF"):
+            images = [Image.open(f).convert('RGB') for f in img_files]
+            pdf_buffer = io.BytesIO()
+            images[0].save(pdf_buffer, save_all=True, append_images=images[1:], format="PDF")
+            st.download_button("Download PDF", data=pdf_buffer.getvalue(), file_name="images.pdf", mime="application/pdf")
 
-        <!-- 4. STATISTICS -->
-        <div id="edu-stats" class="edu-tab">
-            <!-- ... existing stats ... -->
-             <label>Data Set (comma separated)</label>
-             <textarea id="stats-in" placeholder="e.g. 12, 5, 7, 12, 9"></textarea>
-             <button class="secondary-btn" style="width:100%; margin-top:5px" onclick="calcStats()">Calculate Statistics</button>
-             <div id="stats-res" style="margin-top:15px; padding:15px; background:#f8fafc; border-radius:8px;"></div>
-        </div>
-
-        <!-- 5. GRADES & CGPA (NEW) -->
-        <div id="edu-grades" class="edu-tab">
-             <!-- Marks to % -->
-             <div class="card" style="box-shadow:none; background:#fff; border:1px solid #e2e8f0; padding:20px;">
-                 <label style="font-size:1rem; color:var(--primary-gradient)">📝 Exam Percentage Calculator</label>
-                 <div class="grid-2" style="margin-top:10px;">
-                     <div><label>Marks Obtained</label><input type="number" id="grade-obt" placeholder="e.g. 450"></div>
-                     <div><label>Total Marks</label><input type="number" id="grade-tot" placeholder="e.g. 500"></div>
-                 </div>
-                 <button class="action-btn" style="width:100%; margin-top:10px;" onclick="calcExamPercentage()">Calculate Percentage</button>
-                 <div id="grade-perc-res" style="margin-top:15px; text-align:center; font-weight:bold; font-size:1.2rem; color:var(--success)"></div>
-             </div>
-
-             <!-- CGPA Calculator -->
-             <div class="card" style="margin-top:20px; box-shadow:none; background:#fff; border:1px solid #e2e8f0; padding:20px;">
-                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <label style="font-size:1rem; margin:0; color:var(--primary-gradient)">🎓 CGPA Calculator</label>
-                    <button class="secondary-btn" style="padding:5px 10px; font-size:0.8rem;" onclick="addCgpaRow()">+ Add Subject</button>
-                 </div>
-                 <div id="cgpa-rows" style="margin-top:15px; display:flex; flex-direction:column; gap:10px;">
-                     <!-- Dynamic Rows -->
-                     <div class="grid-2 cgpa-row">
-                         <input type="number" placeholder="Credit (e.g. 3 or 4)" class="cgpa-credit">
-                         <input type="number" placeholder="Grade Point (e.g. 8, 9, 10)" class="cgpa-grade">
-                     </div>
-                     <div class="grid-2 cgpa-row">
-                         <input type="number" placeholder="Credit" class="cgpa-credit">
-                         <input type="number" placeholder="Grade Point" class="cgpa-grade">
-                     </div>
-                     <div class="grid-2 cgpa-row">
-                         <input type="number" placeholder="Credit" class="cgpa-credit">
-                         <input type="number" placeholder="Grade Point" class="cgpa-grade">
-                     </div>
-                     <div class="grid-2 cgpa-row">
-                         <input type="number" placeholder="Credit" class="cgpa-credit">
-                         <input type="number" placeholder="Grade Point" class="cgpa-grade">
-                     </div>
-                 </div>
-                 <button class="action-btn" style="width:100%; margin-top:15px;" onclick="calcCgpa()">Calculate CGPA</button>
-                 <div id="cgpa-res" style="margin-top:15px; text-align:center; font-weight:bold; font-size:1.2rem; color:var(--text-main)"></div>
-             </div>
-             
-             <!-- CGPA to Percentage -->
-             <div class="card" style="margin-top:20px; box-shadow:none; background:#fff; border:1px solid #e2e8f0; padding:20px;">
-                 <label style="font-size:1rem; color:var(--primary-gradient)">🔄 CGPA to Percentage</label>
-                 <div class="grid-2" style="margin-top:10px;">
-                     <div><label>CGPA</label><input type="number" id="conv-cgpa" placeholder="e.g. 8.5"></div>
-                     <div><label>Multiplier (e.g. 9.5)</label><input type="number" id="conv-mult" value="9.5"></div>
-                 </div>
-                 <button class="secondary-btn" style="width:100%; margin-top:10px;" onclick="calcCgpaToPerc()">Convert</button>
-                 <div id="cgpa-conv-res" style="margin-top:10px; text-align:center; font-weight:bold;"></div>
-             </div>
-        </div>
-
-        <!-- 6. CONVERTERS -->
-        <div id="edu-converters" class="edu-tab">
-            <!-- ... existing converters ... -->
-             <label>Number Base Converter</label>
-             <div class="grid-3">
-                 <div><label>Decimal</label><input type="text" id="base-dec" oninput="convBase('dec')"></div>
-                 <div><label>Binary</label><input type="text" id="base-bin" oninput="convBase('bin')"></div>
-                 <div><label>Hex</label><input type="text" id="base-hex" oninput="convBase('hex')"></div>
-             </div>
-             <hr style="margin:20px 0; border-top:1px dashed #ccc">
-             <label>Scientific Notation</label>
-             <div style="display:flex; gap:10px; align-items:center">
-                 <input type="number" id="sci-in" placeholder="Number" style="flex:1">
-                 <button class="secondary-btn" onclick="document.getElementById('sci-res').textContent = parseFloat(document.getElementById('sci-in').value).toExponential()">Convert</button>
-             </div>
-             <div id="sci-res" style="margin-top:10px; font-weight:bold; font-size:1.2rem"></div>
-        </div>
-
-    </div>
-  </section>
-
-  <!-- SECTION: UTILITIES -->
-  <section id="utilities" class="tool-section">
-    <!-- ... existing utilities content ... -->
-    <div class="card"><div class="section-title">🔐 Password & Hash</div><label>UUID Generator</label><div class="row" style="margin-top:5px"><input id="uuid-out" readonly placeholder="Generated UUID"><button id="btn-uuid" class="secondary-btn">Generate</button><button onclick="navigator.clipboard.writeText(document.getElementById('uuid-out').value); showToast('Copied!');" class="secondary-btn">Copy</button></div><label style="margin-top:15px">Hash Generator</label><input id="hash-input" placeholder="Enter text to hash"><div class="row"><button id="btn-sha256" class="violet-btn">SHA-256</button><button id="btn-md5" class="violet-btn">MD5</button></div><input id="hash-output" readonly placeholder="Hash output..." style="margin-top:10px"></div>
-    <div class="card"><div class="section-title">📊 CSV to JSON</div><textarea id="csv-input" placeholder="Paste CSV data here..."></textarea><div class="row"><button id="btn-csv-json" class="action-btn">Convert to JSON</button></div><textarea id="json-output" readonly placeholder="JSON output..." style="margin-top:15px"></textarea></div>
-    <div class="card"><div class="section-title">🔤 Base64 Encode / Decode</div><textarea id="b64-input" placeholder="Input text..."></textarea><div class="row"><button id="btn-b64-enc" class="secondary-btn">Encode</button><button id="btn-b64-dec" class="secondary-btn">Decode</button></div><textarea id="b64-output" readonly placeholder="Result..." style="margin-top:15px"></textarea></div>
-    <div class="card"><div class="section-title">{} JSON Formatter / Validator</div><textarea id="json-fmt-input" placeholder="Paste JSON..."></textarea><div class="row"><button id="btn-json-fmt" class="action-btn">Format</button><button id="btn-json-val" class="secondary-btn">Validate</button></div></div>
-    <div class="card"><div class="section-title">🎨 Color Picker & Contrast</div><div class="grid-2"><div><label>Background</label><div style="display:flex; gap:5px"><input type="color" id="cont-bg" value="#ffffff"><input type="text" id="cont-bg-text" value="#ffffff" style="width:80px"></div></div><div><label>Foreground (Text)</label><div style="display:flex; gap:5px"><input type="color" id="cont-fg" value="#000000"><input type="text" id="cont-fg-text" value="#000000" style="width:80px"></div></div></div><div style="margin-top:20px; padding:15px; border-radius:8px; border:1px solid #ddd; text-align:center;" id="cont-preview"><h2 style="margin:0">Contrast Ratio: <span id="cont-ratio">21.00</span></h2><div id="cont-grade" style="margin-top:5px; font-weight:bold;">AAA (Perfect)</div></div></div>
-    <div class="card"><div class="section-title">⚡ Quick Utilities</div><label>🎲 Random Number</label><div class="grid-3" style="align-items:end"><div><label>Min</label><input type="number" id="rnd-min" value="1"></div><div><label>Max</label><input type="number" id="rnd-max" value="100"></div><button id="btn-rnd" class="secondary-btn" style="width:100%">Generate</button></div><div id="rnd-res" style="font-size:1.5rem; font-weight:bold; text-align:center; margin-top:10px">-</div><hr style="margin:20px 0; border-top:1px dashed #ccc"><label>📝 Lorem Ipsum</label><div class="grid-3" style="align-items:end"><div><label>Count</label><input type="number" id="lorem-count" value="2"></div><div><label>Type</label><select id="lorem-type"><option value="p">Paragraphs</option><option value="s">Sentences</option></select></div><button id="btn-lorem" class="secondary-btn" style="width:100%">Generate</button></div><textarea id="lorem-out" readonly style="margin-top:10px; height:100px"></textarea><hr style="margin:20px 0; border-top:1px dashed #ccc"><label>📅 Date Difference</label><div class="grid-2"><div><label>Start</label><input type="date" id="date-start"></div><div><label>End</label><input type="date" id="date-end"></div></div><button id="btn-date-diff" class="secondary-btn" style="margin-top:10px; width:100%">Calculate Days</button><div id="date-res" style="text-align:center; margin-top:10px; font-weight:bold"></div><hr style="margin:20px 0; border-top:1px dashed #ccc"><label>🎂 Age Calculator</label><div class="grid-2" style="align-items:end"><div><label>Date of Birth</label><input type="date" id="age-dob"></div><button id="btn-age-calc" class="secondary-btn" style="width:100%">Calculate Age</button></div><div id="age-res" style="text-align:center; margin-top:10px; font-weight:bold"></div><hr style="margin:20px 0; border-top:1px dashed #ccc"><label>⚖️ BMI Calculator</label><div class="grid-2"><div><label>Weight (kg)</label><input type="number" id="bmi-w" value="70"></div><div><label>Height (cm)</label><input type="number" id="bmi-h" value="170"></div></div><button id="btn-bmi" class="secondary-btn" style="margin-top:10px; width:100%">Calculate BMI</button><div id="bmi-res" style="text-align:center; margin-top:10px; font-weight:bold"></div></div>
-  </section>
-
-  <footer>
-    <div style="font-weight: 600; color: var(--text-main); margin-bottom: 5px;">
-        &copy; 2025 convertnext.in
-    </div>
-    <div style="font-size: 0.85rem;">
-        Secure Client-Side Processing &middot; No Server Uploads
-    </div>
-    <div style="margin-top: 8px; font-size: 0.8rem; color: #8b5cf6; font-weight: 500;">
-        ✨ AI features powered by Google Gemini
-    </div>
-    <div style="margin-top: 10px; font-size: 0.85rem; color: var(--text-muted);">
-        This website Made ♥ By <a href="https://www.virendramobile.tech/" target="_blank" style="color: var(--text-main); text-decoration: none; font-weight: 600;">ᐺᓰᖇᘿᘉᕲᖇᗩ ᘻᗩᘉᘿ</a>
-    </div>
-  </footer>
-
-</div>
-
-<div id="toast-container" class="toast-container"></div>
-
-<script>
-const apiKey = 
-
-/* --- UTILS --- */
-function showToast(message, type = 'info') {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
-    container.appendChild(toast);
-    setTimeout(() => {
-        toast.style.animation = 'fadeOut 0.5s ease forwards';
-        setTimeout(() => { if (toast.parentNode) toast.remove(); }, 500);
-    }, 3000);
-}
-window.alert = (msg) => showToast(msg, 'error');
-
-function downloadBlob(blob, filename) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    showToast(`Downloaded ${filename}`, 'success');
-}
-
-function getImgData(file) {
-    return new Promise((resolve) => {
-        const r = new FileReader(); r.onload = e => resolve(e.target.result); r.readAsDataURL(file);
-    });
-}
-
-/* --- API KEY --- */
-function getApiKey() {
-    const key = document.getElementById('user-api-key').value;
-    if(key) { localStorage.setItem('gemini_key', key); return key; }
-    return localStorage.getItem('gemini_key') || apiKey;
-}
-function saveApiKey() {
-    const key = document.getElementById('user-api-key').value;
-    if (key) { localStorage.setItem('gemini_key', key); showToast('API Key Saved!', 'success'); } 
-    else { localStorage.removeItem('gemini_key'); }
-}
-
-/* --- UNITS DATA (Moved up to avoid ReferenceError) --- */
-const unitData = { 
-    length: { meter:1, kilometer:1000, centimeter:0.01, millimeter:0.001, micrometer:1e-6, nanometer:1e-9, inch:0.0254, foot:0.3048, yard:0.9144, mile:1609.34, nautical_mile:1852 }, 
-    weight: { kilogram:1, gram:0.001, milligram:1e-6, microgram:1e-9, metric_ton:1000, pound:0.453592, ounce:0.0283495, carat:0.0002 }, 
-    area: { square_meter:1, square_kilometer:1e6, square_centimeter:0.0001, square_millimeter:1e-6, hectare:10000, acre:4046.86, square_mile:2.59e6, square_yard:0.836127, square_foot:0.092903, square_inch:0.00064516 }, 
-    volume: { liter:1, milliliter:0.001, cubic_meter:1000, cubic_centimeter:0.001, cubic_inch:0.0163871, cubic_foot:28.3168, gallon_us:3.78541, quart_us:0.946353, pint_us:0.473176, cup:0.236588, tablespoon:0.0147868, teaspoon:0.00492892 }, 
-    time: { second: 1, millisecond: 0.001, microsecond: 1e-6, nanosecond: 1e-9, minute: 60, hour: 3600, day: 86400, week: 604800, month: 2.628e6, year: 3.154e7 },
-    speed: { meters_per_second: 1, kilometers_per_hour: 0.277778, miles_per_hour: 0.44704, knot: 0.514444, foot_per_second: 0.3048 },
-    pressure: { pascal: 1, kilopascal: 1000, bar: 100000, psi: 6894.76, atmosphere: 101325, torr: 133.322 },
-    power: { watt: 1, kilowatt: 1000, megawatt: 1e6, horsepower: 745.7 },
-    energy: { joule: 1, kilojoule: 1000, calorie: 4.184, kilocalorie: 4184, watt_hour: 3600, kilowatt_hour: 3.6e6, electron_volt: 1.602e-19, btu: 1055.06 },
-    voltage: { volt: 1, millivolt: 0.001, kilovolt: 1000 },
-    current: { ampere: 1, milliampere: 0.001, kiloampere: 1000 },
-    force: { newton: 1, kilonewton: 1000, dyne: 1e-5, pound_force: 4.44822 },
-    torque: { newton_meter: 1, pound_foot: 1.35582 },
-    data: { bit: 1, byte: 8, kilobit: 1000, kilobyte: 8000, megabit: 1e6, megabyte: 8e6, gigabit: 1e9, gigabyte: 8e9, terabit: 1e12, terabyte: 8e12 },
-    frequency: { hertz: 1, kilohertz: 1000, megahertz: 1e6, gigahertz: 1e9 },
-    angle: { degree: 1, radian: 57.2958, gradian: 0.9 },
-    density: { kg_per_cubic_meter: 1, gram_per_cubic_cm: 1000, lb_per_cubic_ft: 16.0185 },
-    temp: { celsius:'Celsius', fahrenheit:'Fahrenheit', kelvin:'Kelvin' } 
-};
-
-/* --- APP INITIALIZATION --- */
-function initApp() {
-    // 1. Restore API Key
-    const k = localStorage.getItem('gemini_key');
-    if(k) document.getElementById('user-api-key').value = k;
+# --- 2. IMAGE TOOLS ---
+elif selected_tool == "🖼️ Image Tools":
+    st.header("🖼️ Image Tools")
     
-    // 2. Init Tabs
-    document.querySelector('.nav-btn.active').click();
+    tab1, tab2, tab3, tab4 = st.tabs(["Background Remover", "Filters & Converter", "QR Code", "Passport Maker"])
     
-    // 3. Init PDF
-    if(window.pdfjsLib) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    }
-
-    // 4. Init Units
-    initUnitCategories(); // New function
-    populateUnits();
-    
-    // 5. Init Currency
-    initCurrency();
-    
-    // 6. Init Utilities (Listeners)
-    initUtilities();
-
-    // 7. Attach ALL Event Listeners Safely
-    attachListeners();
-}
-
-function attachListeners() {
-    // PDF
-    document.getElementById('pdf-merge-btn').addEventListener('click', mergePDFs);
-    document.getElementById('pdf-split-btn').addEventListener('click', splitPDF);
-    document.getElementById('imgs-to-pdf-btn').addEventListener('click', imgsToPDF);
-    document.getElementById('pdf-compress-btn').addEventListener('click', compressPDF);
-    document.getElementById('pdf-extract-btn').addEventListener('click', extractPDFText);
-    document.getElementById('pdf-unlock-btn').addEventListener('click', unlockPDF);
-    document.getElementById('pdf-edit-btn').addEventListener('click', watermarkPDF);
-    document.getElementById('pdf-render-btn').addEventListener('click', renderPDF);
-
-    // Image
-    document.getElementById('bg-studio-file').addEventListener('change', handleBgRemoval);
-    document.getElementById('btn-img-conv').addEventListener('click', convertImage);
-    document.getElementById('ai-image-file').addEventListener('change', handleAiImageUpload);
-    document.getElementById('ai-vision-btn').addEventListener('click', analyzeImage);
-    document.getElementById('btn-ai-gen').addEventListener('click', generateImage);
-    document.getElementById('btn-ocr').addEventListener('click', doOCR);
-    document.getElementById('crop-file').addEventListener('change', loadCropper);
-    document.getElementById('btn-crop-save').addEventListener('click', saveCrop);
-    document.getElementById('exif-file').addEventListener('change', readExif);
-    document.getElementById('btn-meme-gen').addEventListener('click', generateMeme);
-    document.getElementById('btn-collage').addEventListener('click', createCollage);
-    
-    document.getElementById('btn-namedob').addEventListener('click', addNameDob);
-    document.getElementById('btn-dpi').addEventListener('click', changeDpi);
-    document.getElementById('btn-passport-make').addEventListener('click', makePassport);
-    document.getElementById('btn-resize-apply').addEventListener('click', resizeImage);
-    document.getElementById('btn-kb-apply').addEventListener('click', compressImageKb);
-    document.getElementById('btn-enhance').addEventListener('click', enhanceImage);
-    document.getElementById('qr-text').addEventListener('input', generateQR);
-    document.getElementById('qr-download').addEventListener('click', downloadQR);
-
-    // Signature
-    const canvas = document.getElementById('signature-pad');
-    if(canvas) {
-        canvas.addEventListener('mousedown', startDraw);
-        canvas.addEventListener('mouseup', endDraw);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('touchstart', startDraw);
-        canvas.addEventListener('touchend', endDraw);
-        canvas.addEventListener('touchmove', draw);
-    }
-    document.getElementById('btn-sig-clear').addEventListener('click', clearSig);
-    document.getElementById('btn-sig-download').addEventListener('click', downloadSig);
-    document.getElementById('btn-sig-resize').addEventListener('click', resizeSig);
-
-    // Finance
-    document.getElementById('btn-emi-calc').addEventListener('click', calcEMI);
-    document.getElementById('btn-ci-calc').addEventListener('click', calcCI);
-    document.getElementById('btn-tax-calc').addEventListener('click', calcTax);
-    document.getElementById('btn-convert-cur').addEventListener('click', convertCurrency);
-
-    // Units
-    document.getElementById('unit-category').addEventListener('change', populateUnits);
-    document.getElementById('btn-convert-unit').addEventListener('click', convertUnits);
-
-    // AI Integration
-    document.getElementById('btn-send-to-ai').addEventListener('click', sendPdfToAi);
-}
-
-// Initialize everything when DOM is ready
-window.onload = initApp;
-
-/* --- TABS --- */
-document.querySelectorAll('.nav-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        if(btn.parentElement.classList.contains('main-nav')) {
-             document.querySelectorAll('.main-nav > .nav-btn').forEach(b => b.classList.remove('active'));
-             document.querySelectorAll('.tool-section').forEach(s => s.classList.remove('active'));
-             btn.classList.add('active');
-             const target = document.getElementById(btn.dataset.target);
-             if(target) target.classList.add('active');
-             if(btn.dataset.target === 'signature') resizeCanvas();
-             btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-        }
-    });
-});
-
-window.switchEduTab = function(tabId, btn) {
-    document.querySelectorAll('.edu-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('#education .nav-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('edu-' + tabId).classList.add('active');
-    btn.classList.add('active');
-    btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-}
-
-/* --- IMPLEMENTATION FUNCTIONS (Moved out of init for clarity) --- */
-
-// PDF
-async function mergePDFs() {
-    if (typeof PDFLib === 'undefined') return showToast('Library not loaded', 'error');
-    const files = document.getElementById('pdf-merge-input').files;
-    if(files.length < 2) return showToast("Select 2+ PDFs", 'error');
-    try {
-        const doc = await PDFLib.PDFDocument.create();
-        for(let f of files) {
-            const d = await PDFLib.PDFDocument.load(await f.arrayBuffer());
-            (await doc.copyPages(d, d.getPageIndices())).forEach(p => doc.addPage(p));
-        }
-        downloadBlob(new Blob([await doc.save()],{type:'application/pdf'}), 'merged.pdf');
-    } catch(e) { showToast(e.message, 'error'); }
-}
-async function splitPDF() {
-    const files = document.getElementById('pdf-merge-input').files;
-    if(files.length !== 1) return showToast("Select 1 PDF", 'error');
-    try {
-        const doc = await PDFLib.PDFDocument.load(await files[0].arrayBuffer());
-        for(let i=0; i<doc.getPageCount(); i++){
-            const n = await PDFLib.PDFDocument.create();
-            const [p] = await n.copyPages(doc, [i]); n.addPage(p);
-            downloadBlob(new Blob([await n.save()],{type:'application/pdf'}), `page_${i+1}.pdf`);
-        }
-    } catch(e) { showToast(e.message, 'error'); }
-}
-async function imgsToPDF() {
-    const files = document.getElementById('imgs-to-pdf-input').files;
-    if(!files.length) return showToast("Select images", 'error');
-    try {
-        const { jsPDF } = window.jspdf; const doc = new jsPDF();
-        const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
-        for(let i=0; i<files.length; i++){
-            if(i>0) doc.addPage();
-            const d = await getImgData(files[i]);
-            const r = Math.min(W/500, H/500); // simplified sizing
-            doc.addImage(d, 'JPEG', 10, 10, 180, 0); // auto height
-        }
-        doc.save('images.pdf');
-    } catch(e) { showToast(e.message, 'error'); }
-}
-// ... skipping repetitive PDF impls for brevity, logic remains same ...
-async function compressPDF() { /* ... */ }
-async function extractPDFText() { /* ... */ }
-async function unlockPDF() { /* ... */ }
-async function watermarkPDF() { /* ... */ }
-async function renderPDF() { /* ... */ }
-
-// Image
-async function handleBgRemoval() { /* ... */ }
-async function convertImage() { /* ... */ }
-async function handleAiImageUpload(e) {
-    const file = e.target.files[0]; if (!file) return;
-    aiImageMimeType = file.type;
-    const reader = new FileReader();
-    reader.onload = function(event) { aiImageBase64 = event.target.result.split(',')[1]; document.getElementById('ai-image-preview').innerHTML = `<img src="${event.target.result}" class="preview-img" style="max-height:300px;">`; };
-    reader.readAsDataURL(file);
-}
-async function analyzeImage() {
-    if (!aiImageBase64) return showToast("Please upload an image first.", 'error');
-    const userPrompt = document.getElementById('ai-image-prompt').value || "Describe this image in detail.";
-    document.getElementById('ai-vision-output-container').style.display = 'block';
-    document.getElementById('ai-vision-output').innerHTML = '<span class="status loading">Analyzing...</span>';
-    try {
-        const text = await callGeminiAPI({ contents: [{ parts: [{ text: userPrompt }, { inlineData: { mimeType: aiImageMimeType || "image/png", data: aiImageBase64 } }] }] });
-        document.getElementById('ai-vision-output').innerHTML = marked.parse(text);
-    } catch (e) { document.getElementById('ai-vision-output').textContent = "Error: " + e.message; }
-}
-async function generateImage() {
-    const prompt = document.getElementById('ai-gen-prompt').value;
-    if(!prompt) return showToast("Please enter a prompt", 'error');
-    
-    const resultArea = document.getElementById('ai-gen-result'); 
-    resultArea.style.display = 'flex'; 
-    resultArea.innerHTML = '<span class="status loading">Generating (Pollinations.ai)...</span>';
-    
-    try {
-        const seed = Math.floor(Math.random() * 10000);
-        // Construct URL
-        const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&seed=${seed}&nologo=true`;
-        
-        // Create Image element directly to bypass strict CORS on fetch if present
-        const img = new Image();
-        img.crossOrigin = "Anonymous"; // Try to get CORS permission for canvas/download
-        img.src = url;
-        img.className = 'preview-img';
-        img.style.maxHeight = '400px';
-        
-        img.onload = () => {
-            resultArea.innerHTML = '';
-            resultArea.appendChild(img);
+    with tab1:
+        st.subheader("Remove Background")
+        uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+        if uploaded_file:
+            image = Image.open(uploaded_file)
+            st.image(image, caption="Original", use_column_width=True)
             
-            // Create download link
-            const downBtn = document.createElement('a');
-            downBtn.className = 'action-btn';
-            downBtn.textContent = 'Download Image';
-            downBtn.style.marginTop = '10px';
+            if st.button("Remove Background"):
+                with st.spinner("Processing..."):
+                    try:
+                        output = remove(image)
+                        st.image(output, caption="Result", use_column_width=True)
+                        get_image_download_link(output, "no-bg.png", "Download Result")
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+
+    with tab2:
+        st.subheader("Converter & Filters")
+        img_file = st.file_uploader("Upload", type=["jpg", "png", "webp"])
+        if img_file:
+            img = Image.open(img_file)
+            col1, col2 = st.columns(2)
+            with col1:
+                filter_type = st.selectbox("Apply Filter", ["None", "Grayscale", "Blur", "Contour", "Detail"])
+            with col2:
+                format_type = st.selectbox("Convert To", ["PNG", "JPEG", "WEBP", "BMP"])
             
-            // Try to download via blob if CORS allows, else open in new tab
-            try {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.naturalWidth;
-                canvas.height = img.naturalHeight;
-                canvas.getContext('2d').drawImage(img, 0, 0);
-                canvas.toBlob(blob => {
-                    const bUrl = URL.createObjectURL(blob);
-                    downBtn.href = bUrl;
-                    downBtn.download = `ai-gen-${seed}.png`;
-                });
-            } catch(e) {
-                // Fallback if canvas is tainted
-                downBtn.href = url;
-                downBtn.target = "_blank";
-                downBtn.textContent = 'Open Full Image';
-            }
+            if filter_type == "Grayscale": img = ImageOps.grayscale(img)
+            elif filter_type == "Blur": img = img.filter(ImageFilter.BLUR)
+            elif filter_type == "Contour": img = img.filter(ImageFilter.CONTOUR)
             
-            const row = document.createElement('div');
-            row.className = 'row';
-            row.appendChild(downBtn);
-            resultArea.appendChild(row);
-            showToast("Image Generated!", "success");
-        };
-        
-        img.onerror = () => {
-            throw new Error("Failed to load image from Pollinations");
-        };
+            st.image(img, caption="Preview")
+            
+            buf = io.BytesIO()
+            save_format = "JPEG" if format_type == "JPG" else format_type
+            # Handle RGBA to RGB for JPEG
+            if save_format == "JPEG" and img.mode == "RGBA":
+                img = img.convert("RGB")
+                
+            img.save(buf, format=save_format)
+            st.download_button(f"Download as {format_type}", data=buf.getvalue(), file_name=f"image.{format_type.lower()}", mime=f"image/{format_type.lower()}")
 
-    } catch(e) {
-        resultArea.innerHTML = `<span class="status error">Error: ${e.message}</span>`; 
-        showToast("Generation Failed", "error");
-    }
-}
+    with tab3:
+        st.subheader("QR Code Generator")
+        qr_text = st.text_input("Enter URL or Text")
+        if qr_text:
+            qr = qrcode.make(qr_text)
+            st.image(qr, width=300)
+            buf = io.BytesIO()
+            qr.save(buf, format="PNG")
+            st.download_button("Download QR", data=buf.getvalue(), file_name="qrcode.png", mime="image/png")
 
-async function doOCR() {
-    const file = document.getElementById('ocr-file').files[0];
-    const lang = document.getElementById('ocr-lang').value;
-    const resBox = document.getElementById('ocr-result');
-    const progBox = document.getElementById('ocr-progress');
+# --- 3. AI STUDIO ---
+elif selected_tool == "🤖 AI Studio":
+    st.header("✨ AI Studio (Powered by Gemini)")
     
-    if(!file) return showToast("Select an image first", 'error');
+    if not api_key:
+        st.warning("⚠️ Please enter your Gemini API Key in the sidebar to use these features.")
     
-    resBox.value = "";
-    progBox.textContent = "Processing... (This may take a moment)";
+    tab1, tab2 = st.tabs(["Vision (Image Analysis)", "Text Lab"])
     
-    try {
-        // Using the shorthand Tesseract.recognize function for simplicity and stability
-        const ret = await Tesseract.recognize(
-            file,
-            lang,
-            { 
-                logger: m => {
-                    if(m.status === 'recognizing text') {
-                         progBox.textContent = `Recognizing: ${(m.progress * 100).toFixed(0)}%`;
-                    } else {
-                         progBox.textContent = m.status;
-                    }
-                }
-            }
-        );
+    with tab1:
+        st.subheader("Ask about an Image")
+        ai_img = st.file_uploader("Upload Image", type=['png', 'jpg', 'jpeg'])
+        prompt = st.text_area("Question", "Describe this image in detail.")
         
-        resBox.value = ret.data.text;
-        progBox.textContent = "Done!";
-        showToast("Text Extracted!", 'success');
-    } catch(e) {
-        console.error(e);
-        progBox.textContent = "Error: " + e.message;
-        showToast("OCR Failed", 'error');
-    }
-}
-
-async function loadCropper(e) { /* ... */ }
-async function saveCrop() { /* ... */ }
-function readExif(e) { /* ... */ }
-async function generateMeme() { /* ... */ }
-async function createCollage() { /* ... */ }
-
-// Utilities (Images)
-async function addNameDob() { /* ... */ }
-async function changeDpi() { /* ... */ }
-async function makePassport() { /* ... */ }
-async function resizeImage() { /* ... */ }
-async function compressImageKb() { /* ... */ }
-async function enhanceImage() { /* ... */ }
-function generateQR(e) { /* ... */ }
-function downloadQR() { /* ... */ }
-
-// Signature
-let painting = false;
-function startDraw(e) { painting = true; draw(e); }
-function endDraw() { painting = false; ctx.beginPath(); }
-function draw(e) { 
-    if (!painting) return; e.preventDefault(); 
-    const canvas = document.getElementById('signature-pad');
-    const ctx = canvas.getContext('2d');
-    const r = canvas.getBoundingClientRect(); 
-    const x = (e.clientX||e.touches[0].clientX) - r.left; 
-    const y = (e.clientY||e.touches[0].clientY) - r.top; 
-    ctx.lineWidth = document.getElementById('sig-width').value; 
-    ctx.lineCap = 'round'; 
-    ctx.strokeStyle = document.getElementById('sig-color').value; 
-    ctx.lineTo(x, y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y); 
-}
-function clearSig() { 
-    const c = document.getElementById('signature-pad'); 
-    c.getContext('2d').clearRect(0,0,c.width,c.height); 
-}
-function downloadSig() { 
-    document.getElementById('signature-pad').toBlob(b => downloadBlob(b,'sig.png')); 
-}
-function resizeSig() { /* ... */ }
-
-// Finance
-function calcEMI() { /* ... */ }
-function calcCI() { /* ... */ }
-function calcTax() { /* ... */ }
-async function convertCurrency() { /* ... */ }
-
-// Units
-function initUnitCategories() {
-    const unitSelect = document.getElementById('unit-category');
-    if (unitSelect.options.length === 0) {
-        const categories = Object.keys(unitData);
-        const categoryNames = {
-            length: 'Length', weight: 'Weight', area: 'Area', volume: 'Volume', 
-            time: 'Time', speed: 'Speed', pressure: 'Pressure', power: 'Power', 
-            energy: 'Energy', voltage: 'Voltage', current: 'Current', force: 'Force', 
-            torque: 'Torque', data: 'Data Storage', frequency: 'Frequency', 
-            angle: 'Angle', density: 'Density', temp: 'Temperature'
-        };
+        if ai_img and prompt and api_key and st.button("Analyze Image"):
+            with st.spinner("AI is seeing..."):
+                try:
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    img = Image.open(ai_img)
+                    response = model.generate_content([prompt, img])
+                    st.markdown(response.text)
+                except Exception as e:
+                    st.error(f"AI Error: {e}")
+                    
+    with tab2:
+        st.subheader("AI Text Assistant")
+        txt_input = st.text_area("Input Text")
+        action = st.selectbox("Action", ["Summarize", "Fix Grammar", "Translate to Hindi", "Translate to Spanish"])
         
-        unitSelect.innerHTML = categories.map(cat => 
-            `<option value="${cat}">${categoryNames[cat] || cat.charAt(0).toUpperCase() + cat.slice(1)}</option>`
-        ).join('');
-    }
-}
+        if txt_input and api_key and st.button("Run AI"):
+            with st.spinner("AI is thinking..."):
+                try:
+                    model = genai.GenerativeModel('gemini-pro')
+                    full_prompt = f"{action} the following text:\n\n{txt_input}"
+                    response = model.generate_content(full_prompt)
+                    st.success("Response:")
+                    st.write(response.text)
+                except Exception as e:
+                    st.error(f"Error: {e}")
 
-function populateUnits() { 
-    const c = document.getElementById('unit-category').value; 
-    const unitSelects = [document.getElementById('unit-from'), document.getElementById('unit-to')];
-    const ops = Object.keys(unitData[c]).map(u => {
-        const label = u.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        return `<option value="${u}">${label}</option>`;
-    }).join(''); 
-    unitSelects.forEach(s => s.innerHTML = ops);
-}
-function convertUnits() { 
-    const c = document.getElementById('unit-category').value;
-    const f = document.getElementById('unit-from').value;
-    const t = document.getElementById('unit-to').value;
-    const v = parseFloat(document.getElementById('unit-input').value);
-    let r = 0; 
-    if(c === 'temp'){ 
-        /* Temp logic */ 
-        if(f===t) r=v;
-        else if(f==='celsius'&&t==='fahrenheit') r=v*9/5+32;
-        else if(f==='celsius'&&t==='kelvin') r=v+273.15;
-        else if(f==='fahrenheit'&&t==='celsius') r=(v-32)*5/9;
-        else if(f==='fahrenheit'&&t==='kelvin') r=(v-32)*5/9+273.15;
-        else if(f==='kelvin'&&t==='celsius') r=v-273.15;
-        else if(f==='kelvin'&&t==='fahrenheit') r=(v-273.15)*9/5+32;
-    } else { 
-        r = v * unitData[c][f] / unitData[c][t]; 
-    } 
-    document.getElementById('unit-result').textContent = `${parseFloat(r.toPrecision(6))} ${t}`; 
-}
+# --- 4. TEXT TOOLS ---
+elif selected_tool == "📝 Text & OCR":
+    st.header("📝 Text Tools")
+    txt = st.text_area("Input Text")
+    
+    col1, col2, col3 = st.columns(3)
+    if col1.button("UPPERCASE"):
+        st.code(txt.upper())
+    if col2.button("lowercase"):
+        st.code(txt.lower())
+    if col3.button("Title Case"):
+        st.code(txt.title())
+        
+    st.subheader("Word Count")
+    if txt:
+        st.write(f"Words: {len(txt.split())} | Characters: {len(txt)}")
 
-/* --- AI --- */
-let aiImageMimeType = null;
-let aiImageBase64 = null;
+# --- 5. FINANCE ---
+elif selected_tool == "💰 Finance":
+    st.header("💰 Financial Calculators")
+    
+    tab1, tab2, tab3 = st.tabs(["Loan EMI", "SIP Calculator", "Tax (Simple)"])
+    
+    with tab1:
+        p = st.number_input("Loan Amount (P)", value=100000)
+        r = st.number_input("Interest Rate (%)", value=8.5)
+        n = st.number_input("Tenure (Years)", value=5)
+        
+        if st.button("Calculate EMI"):
+            r_mon = r / (12 * 100)
+            n_mon = n * 12
+            emi = (p * r_mon * ((1 + r_mon)**n_mon)) / (((1 + r_mon)**n_mon) - 1)
+            total_pay = emi * n_mon
+            
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Monthly EMI", f"₹{emi:,.2f}")
+            c2.metric("Total Interest", f"₹{total_pay - p:,.2f}")
+            c3.metric("Total Amount", f"₹{total_pay:,.2f}")
 
-async function callGeminiAPI(payload) {
-    const key = getApiKey();
-    if (!key) {
-        showToast("Please enter your Gemini API Key in the top right corner.", "error");
-        throw new Error("API Key missing");
-    }
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`;
-    try {
-        const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        const data = await response.json();
-        if (data.error) throw new Error(data.error.message);
-        return data.candidates[0].content.parts[0].text;
-    } catch (error) { throw error; }
-}
+# --- 6. UNITS ---
+elif selected_tool == "⚖️ Units & Calc":
+    st.header("⚖️ Unit Converter")
+    
+    category = st.selectbox("Category", ["Length", "Weight", "Temperature"])
+    val = st.number_input("Value", value=1.0)
+    
+    if category == "Length":
+        u_from = st.selectbox("From", ["Meter", "Kilometer", "Foot", "Inch"])
+        u_to = st.selectbox("To", ["Meter", "Kilometer", "Foot", "Inch"])
+        # Simplified logic for demo
+        factors = {"Meter":1, "Kilometer":1000, "Foot":0.3048, "Inch":0.0254}
+        res = val * factors[u_from] / factors[u_to]
+        st.metric("Result", f"{res} {u_to}")
 
-/* --- UTILITIES --- */
-function initUtilities() {
-    // ... (Listeners for utils inside utilities tab)
-}
-
-// 6. Converters
-function convBase(type) {
-    try {
-        let val;
-        if(type === 'dec') val = parseInt(document.getElementById('base-dec').value, 10);
-        else if (type === 'bin') val = parseInt(document.getElementById('base-bin').value, 2);
-        else val = parseInt(document.getElementById('base-hex').value, 16);
-
-        if (isNaN(val)) return;
-
-        if (type !== 'dec') document.getElementById('base-dec').value = val.toString(10);
-        if (type !== 'bin') document.getElementById('base-bin').value = val.toString(2);
-        if (type !== 'hex') document.getElementById('base-hex').value = val.toString(16).toUpperCase();
-    } catch(e) {}
-}
-
-// Helper Functions placeholders to make code concise above
-function resizeCanvas() { const c=document.getElementById('signature-pad'); c.width=c.offsetWidth; c.height=c.offsetHeight; }
-async function initCurrency() { 
-    try{const r=await fetch('https://api.frankfurter.app/currencies');const d=await r.json();
-    const ops=Object.keys(d).map(k=>`<option value="${k}">${k} - ${d[k]}</option>`).join('');
-    document.getElementById('cur-from').innerHTML=ops;document.getElementById('cur-to').innerHTML=ops;
-    document.getElementById('cur-from').value='USD';document.getElementById('cur-to').value='INR';}catch(e){}
-}
-
-/* RESTORED MISSING FUNCTIONS FROM PREVIOUS CONTEXT TO FIX BUGS */
-function togglePdfCompressMode() {
-    const mode = document.getElementById('pdf-compress-mode').value;
-    document.getElementById('pdf-mode-quality').style.display = mode === 'quality' ? 'block' : 'none';
-    document.getElementById('pdf-mode-size').style.display = mode === 'size' ? 'block' : 'none';
-}
-function transformText(mode) { 
-    const v = document.getElementById('text-in').value; let r = v; 
-    if(mode==='upper')r=v.toUpperCase(); if(mode==='lower')r=v.toLowerCase(); 
-    if(mode==='title')r=v.replace(/\b\w/g, c=>c.toUpperCase()); 
-    if(mode==='base64')r=btoa(v); if(mode==='json')try{r=JSON.stringify(JSON.parse(v),null,2)}catch(e){r="Invalid JSON"} 
-    document.getElementById('text-out').value = r; 
-}
-function sendPdfToAi() {
-    const extractedText = document.getElementById('pdf-extract-out').value;
-    if(!extractedText) return showToast("No text extracted yet.", 'error');
-    document.querySelector('[data-target="text"]').click();
-    document.getElementById('ai-text-input').value = extractedText;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-</script>
-</body>
-</html>
+# --- FOOTER ---
+st.divider()
+st.markdown("© 2025 convertnext.in | Python Edition | Made by Virendra Mane")
